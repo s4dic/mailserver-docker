@@ -1,0 +1,15 @@
+[DEFAULT]
+# --- Whitelist ---
+# Ajoute ton IP publique ici pour ne jamais être banni, même en cas d'erreur.
+# Les IPs sont séparées par des espaces.
+ignoreip = 127.0.0.1/8 ::1 
+
+# --- Politique de Ban ---
+# Durée du bannissement en secondes (ici 1 heure)
+bantime = 3600
+
+# Temps durant lequel on compte les échecs (ici 10 minutes)
+findtime = 600
+
+# Nombre d'essais autorisés durant le "findtime" avant ban
+maxretry = 5
