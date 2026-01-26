@@ -1,0 +1,56 @@
+services:
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    container_name: mailserver
+    # Hostname interne au conteneur, doit correspondre au FQDN public
+    hostname: mail.FQDN.TLD # CHANGE ME !!!
+    networks:
+      default:
+        aliases:
+          - mail.FQDN.TLD # CHANGE ME
+    domainname: FQDN.TLD # CHANGE ME !!!
+    env_file: mailserver.env
+    ports:
+      - "25:25"     # SMTP 
+      - "143:143"   # IMAP (StartTLS)
+      - "587:587"   # Submission (StartTLS)
+      - "465:465"   # SMTPS (Implicit TLS - Recommandé pour les clients)
+      - "993:993"   # IMAPS
+      - "11334:11334"  # RSPAMD
+    volumes:
+      - ./docker-data/dms/mail-data/:/var/mail/
+      - ./docker-data/dms/mail-state/:/var/mail-state/
+      - ./docker-data/dms/mail-logs/:/var/log/mail/
+      - ./docker-data/dms/config/:/tmp/docker-mailserver/
+      - /etc/localtime:/etc/localtime:ro # Attention à ce que l'heure de la machine soit bien configurée (sinon des problèmes OTP surviendront).
+      - ./docker-data/dms/config/rspamd/:/etc/rspamd/override.d/ #RSPAMD
+      - ./docker-data/dms/ssl/:/tmp/dms/custom-certs/:ro # Pour les certificats TLS
+    restart: always
+    stop_grace_period: 1m
+    cap_add:
+      - NET_ADMIN # Recommandé pour la gestion réseau de Fail2Ban
+    healthcheck:
+      test: "ss --listening --tcp | grep -P 'LISTEN.+:smtp' || exit 1"
+      timeout: 3s
+      retries: 0
+
+  # --- SNAPPYMAIL Webmail ---
+  snappymail:
+    image: ghcr.io/the-djmaze/snappymail:latest
+    container_name: snappymail
+    restart: always
+    ports:
+      - "45621:8888"
+    healthcheck: # permet de verifier le status de snappymail et de le redémarrer en cas de crash, non prévu par le concepteur
+      # On utilise wget car c'est une image Alpine (curl n'est pas toujours là)
+      test: "wget -q --spider http://127.0.0.1:8888 || exit 1"
+      interval: 1m
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./docker-data/snappymail_data:/var/lib/snappymail
+    environment:
+      - PHP_UPLOAD_MAX_FILESIZE=20M # Empêche l'upload de fichiers trop gros pour PHP (optionnel mais conseillé)
+      - PHP_POST_MAX_SIZE=20M # Pareil (Il faudra configurer snappymail avec la même configuration)
+    depends_on:
+      - mailserver
